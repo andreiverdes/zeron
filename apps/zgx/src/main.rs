@@ -641,7 +641,9 @@ fn opening(session: bool, finished_before: bool, welcomed: bool, onboarded: bool
         Opening::Welcome
     } else if onboarded {
         Opening::Main
-    } else if session {
+    } else if session || cfg!(feature = "local-only") {
+        // (A `local-only` build has no account: setup, never the intro,
+        // which ends on Sign in.)
         Opening::Setup
     } else {
         Opening::Intro
@@ -706,8 +708,15 @@ fn script_host_at(cx: &mut WindowContext, path: PathBuf, entry: &str) -> ScriptH
     // The platform the window is on ("macos", "linux", "windows"): what the
     // window's own buttons are (ds/title_bar: macOS's traffic lights).
     host.shared("platform", std::env::consts::OS);
+    // A `local-only` build: no account, so setup has no Sign in step and
+    // starts on the look.
+    if cfg!(feature = "local-only") {
+        host.shared("account.local_only", true);
+    }
     if let Ok(step) = std::env::var("ZERON_ZGX_STEP") {
         host.shared("onboarding.start", step.as_str());
+    } else if cfg!(feature = "local-only") {
+        host.shared("onboarding.start", "appearance");
     }
     // Their username and card only (`welcome_due`).
     if WELCOME.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1446,7 +1455,8 @@ mod welcome_tests {
         use super::{Opening, opening};
         // (session, finished before, welcomed, onboarded here)
         assert_eq!(opening(false, false, false, true), Opening::Main);
-        assert_eq!(opening(false, false, false, false), Opening::Intro);
+        let new_here = if cfg!(feature = "local-only") { Opening::Setup } else { Opening::Intro };
+        assert_eq!(opening(false, false, false, false), new_here);
         assert_eq!(opening(true, false, false, true), Opening::Main);
         assert_eq!(opening(true, false, false, false), Opening::Setup);
         assert_eq!(opening(true, true, false, true), Opening::Welcome);

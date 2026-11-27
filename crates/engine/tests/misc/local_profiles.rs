@@ -1,4 +1,6 @@
 //! Integrated regressions for local-first profile privacy and lifecycle boundaries.
+// (A `local-only` build compiles out the sign-in tests these helpers serve.)
+#![cfg_attr(feature = "local-only", allow(dead_code, unused_imports))]
 
 use std::path::Path;
 use std::sync::{Arc, Barrier, Mutex};
@@ -320,6 +322,7 @@ async fn synced_accounts_isolate_uploads_and_assign_the_legacy_cache_once() {
     shutdown(core).await;
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn existing_session_opens_the_historical_cloud_layout_in_place() {
     let dir = tempfile::tempdir().expect("tempdir");
@@ -515,6 +518,7 @@ fn query_param(url: &str, key: &str) -> Option<String> {
         .map(|(_, value)| value.to_string())
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn signing_in_does_not_activate_sync_for_the_running_local_profile() {
     let edge = RecordingEdge::start().await;

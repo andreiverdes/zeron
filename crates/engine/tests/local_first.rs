@@ -1,4 +1,6 @@
 //! Local-first startup boundaries and captured synced-session behavior.
+// (A `local-only` build compiles out the synced tests these helpers serve.)
+#![cfg_attr(feature = "local-only", allow(dead_code, unused_imports))]
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -318,6 +320,28 @@ async fn clean_local_auth_construction_does_not_probe_edge_health() {
     edge_task.abort();
 }
 
+/// This fork's `local-only` build: a saved session never selects Synced, it
+/// stays on disk unread, and sign-in is refused.
+#[cfg(feature = "local-only")]
+#[tokio::test]
+async fn local_only_build_ignores_a_saved_session_and_refuses_sign_in() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(
+        dir.path().join("session.json"),
+        r#"{"refreshToken":"dead","user":{"id":"user_1","email":"u@example.com"},"orgId":"org_1"}"#,
+    )
+    .unwrap();
+    let config = config(dir.path(), "http://127.0.0.1:9".into(), Some("client_test"), None);
+    let auth = Engine::build_auth(&config).await;
+
+    assert!(!auth.loaded_workos_session());
+    assert_eq!(auth.state(), AuthState::SignedOut);
+    assert_eq!(Engine::initial_workspace_scope(&auth), WorkspaceScope::Local);
+    assert!(auth.start_sign_in().await.is_err());
+    assert!(dir.path().join("session.json").is_file());
+}
+
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn local_runtime_checks_public_releases_without_starting_edge_links() {
     let dir = tempfile::tempdir().unwrap();
@@ -359,6 +383,7 @@ async fn local_runtime_checks_public_releases_without_starting_edge_links() {
     edge_task.abort();
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn revoked_captured_session_stays_on_its_synced_cache() {
     let dir = tempfile::tempdir().unwrap();
@@ -400,6 +425,7 @@ async fn revoked_captured_session_stays_on_its_synced_cache() {
     edge_task.abort();
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn signed_in_with_chats_kept_local_opens_the_local_workspace_offline() {
     let dir = tempfile::tempdir().unwrap();
@@ -473,6 +499,7 @@ async fn signed_in_with_chats_kept_local_opens_the_local_workspace_offline() {
     assert_eq!(Engine::initial_workspace_scope(&auth), WorkspaceScope::Synced);
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn transient_refresh_failure_keeps_synced_recovery_supervisors_alive() {
     let dir = tempfile::tempdir().unwrap();
@@ -513,6 +540,7 @@ async fn transient_refresh_failure_keeps_synced_recovery_supervisors_alive() {
     runtime.shutdown().await;
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn workspace_recovers_from_an_unreachable_edge_without_restarting() {
     let edge = DaemonEdge::start().await;
@@ -562,6 +590,7 @@ async fn workspace_recovers_from_an_unreachable_edge_without_restarting() {
     runtime.shutdown().await;
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn development_without_an_explicit_bearer_stays_offline() {
     let dir = tempfile::tempdir().unwrap();
@@ -589,6 +618,7 @@ async fn development_without_an_explicit_bearer_stays_offline() {
     edge_task.abort();
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn explicit_dev_bearer_keeps_online_routing_enabled() {
     let dir = tempfile::tempdir().unwrap();
@@ -681,6 +711,7 @@ async fn headless_stop_rpc_drains_the_daemon_and_releases_ipc() {
         .expect("headless IPC port remained occupied after shutdown");
 }
 
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn headless_sign_out_closes_joined_edge_rooms_and_stops_daemon() {
     let dir = tempfile::tempdir().unwrap();
@@ -747,6 +778,7 @@ async fn headless_sign_out_closes_joined_edge_rooms_and_stops_daemon() {
 /// room joins), and dropping the runtime must actually free
 /// the engine graph — the sessions ⇄ doc-host cycle and the strong-`self`
 /// worker loops previously kept a replaced runtime alive and polling forever.
+#[cfg(not(feature = "local-only"))]
 #[tokio::test]
 async fn online_runtime_shutdown_stops_edge_workers_and_retires_the_graph() {
     let dir = tempfile::tempdir().unwrap();

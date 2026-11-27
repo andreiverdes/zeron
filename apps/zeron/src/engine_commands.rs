@@ -17,6 +17,11 @@ pub fn run_engine_command(command: EngineCommand) -> anyhow::Result<()> {
             })
         }
         EngineCommand::Login => {
+            if cfg!(feature = "local-only") {
+                anyhow::bail!(
+                    "Sign-in is disabled in this build (local-only): Zeron runs on this device only."
+                );
+            }
             let runtime = tokio::runtime::Runtime::new()?;
             runtime.block_on(auth_cli::login(engine_config_from_env()))
         }

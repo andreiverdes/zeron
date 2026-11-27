@@ -18,6 +18,12 @@ path = "src/main.rs"
 name = "zeron-engine"
 path = "src/bin/zeron-engine.rs"
 
+[features]
+# This fork builds `zeron` and `zeron-engine` always local (no sign-in);
+# `--no-default-features` gives upstream's behaviour back.
+default = ["local-only"]
+local-only = ["zeron-engine/local-only"]
+
 [dependencies]
 zeron-engine.workspace = true
 zeron-rpc.workspace = true

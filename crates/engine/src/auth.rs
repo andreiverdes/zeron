@@ -408,6 +408,10 @@ pub struct Auth {
     inner: Arc<AuthInner>,
 }
 
+/// What a sign-in answers in this fork's `local-only` build.
+const SIGN_IN_DISABLED: &str =
+    "Sign-in is disabled in this build (local-only): Zeron runs on this device only.";
+
 impl Auth {
     /// Build from config: dev mode unless a WorkOS client id is configured.
     pub fn new(config: AuthConfig) -> Self {
@@ -416,7 +420,8 @@ impl Auth {
             .clone()
             .filter(|s| !s.trim().is_empty());
         let session_file = config.data_dir.join("session.json");
-        let stored: Option<StoredSession> = if workos.is_some() {
+        // A `local-only` build never reads it: it stays on disk, unused.
+        let stored: Option<StoredSession> = if workos.is_some() && !cfg!(feature = "local-only") {
             std::fs::read_to_string(&session_file)
                 .ok()
                 .and_then(|raw| serde_json::from_str(&raw).ok())
@@ -712,6 +717,9 @@ impl Auth {
     /// account or on signing in, and whether it asks afresh rather than
     /// going on as the account the browser is already signed into.
     pub async fn start_sign_in_with(&self, options: SignInOptions) -> Result<String, EngineError> {
+        if cfg!(feature = "local-only") {
+            return Err(EngineError::Other(SIGN_IN_DISABLED.into()));
+        }
         if self.inner.workos.is_none() {
             return Ok(String::new()); // dev mode: nothing to do (TS parity)
         }
@@ -732,7 +740,7 @@ impl Auth {
     /// Begin a headless sign-in: the redirect is the edge's hosted paste-code page —
     /// nothing ever redirects to this machine, so the browser can be anywhere.
     pub fn start_headless_sign_in(&self) -> String {
-        if self.inner.workos.is_none() {
+        if self.inner.workos.is_none() || cfg!(feature = "local-only") {
             return String::new();
         }
         let edge = self.inner.config.edge_url.trim_end_matches('/');
@@ -745,6 +753,9 @@ impl Auth {
     /// Finish a headless sign-in with the pasted `state.code` string. The state half
     /// must match a sign-in started HERE (same CSRF discipline as the loopback flow).
     pub async fn complete_sign_in(&self, pasted: &str) -> Result<(), EngineError> {
+        if cfg!(feature = "local-only") {
+            return Err(EngineError::Other(SIGN_IN_DISABLED.into()));
+        }
         if self.inner.workos.is_none() {
             return Ok(());
         }
@@ -1880,6 +1891,8 @@ fn write_private(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
 mod tests {
     use super::*;
 
+    // (A `local-only` build never loads the session this refreshes.)
+    #[cfg(not(feature = "local-only"))]
     #[tokio::test]
     async fn concurrent_dns_failure_is_shared_with_http_and_room_consumers() {
         use crate::http_error::test_support::FailingDns;

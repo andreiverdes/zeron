@@ -17,10 +17,14 @@ local M = {}
 -- The two ways through, in order. Signed in: the look, then the account's
 -- name and card, naming its organization and inviting to it, GitHub, the
 -- agents. Without an account: the look and the agents. Both open on sign-in
--- and end on done.
+-- and end on done, except in a `local-only` build (the host's
+-- `account.local_only`), which has no account and so no Sign in step.
+M.LOCAL_ONLY = ui.shared("account.local_only", false):peek() == true
 M.PATHS = {
 	signed_in = { "signin", "appearance", "username", "card", "org", "invite", "github", "providers", "done" },
-	skipped = { "signin", "appearance", "providers", "done" },
+	skipped = if M.LOCAL_ONLY
+		then { "appearance", "providers", "done" }
+		else { "signin", "appearance", "providers", "done" },
 } :: { [Path]: { Step } }
 
 -- Someone who already had Zeron, first in this interface: the intro, then only

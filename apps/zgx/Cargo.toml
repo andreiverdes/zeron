@@ -29,6 +29,11 @@ beta = []
 # The layout benchmarks that read a probed zgx (docs/zgx-layout-probe.patch;
 # `live_reflow_traced` in src/split_tests.rs says how). Off in every build.
 layout_probe = []
+# This fork's always-local build: no sign-in anywhere in the app, setup
+# starts on the look, and updates come from the fork's GitHub releases.
+# On by default; `--no-default-features` gives upstream's app back.
+local-only = ["zeron-update/local-only"]
+default = ["local-only"]
 
 [dependencies]
 lz4_flex = { version = "0.11", default-features = false, features = ["safe-encode", "safe-decode"] }

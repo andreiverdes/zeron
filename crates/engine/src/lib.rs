@@ -1009,6 +1009,10 @@ impl Engine {
         if auth.is_runner() {
             // A Cloud runner is always synced for its enrolled {org, user}.
             WorkspaceScope::Synced
+        } else if cfg!(feature = "local-only") {
+            // This fork's `local-only` build: never synced, whatever
+            // session.json says, and no development account either.
+            WorkspaceScope::Local
         } else if !auth.workos_enabled() {
             WorkspaceScope::Development
         } else if auth.loaded_workos_session() && !auth.keeps_chats_local() {
@@ -1334,10 +1338,18 @@ impl Engine {
         // workspace sync being enabled — the feed is the public release feed
         // (served without authentication), not an edge feature.
         let quiescent = core.update_quiescence(runner::is_cloud_platform());
-        core.harness_updates.set_compatibility_feed(format!(
-            "{}/releases/harness-compatibility.json",
-            config.edge_url.trim_end_matches('/')
-        ));
+        // (A `local-only` build reads it beside its own releases, the fork's.)
+        let compatibility_feed = if cfg!(feature = "local-only") {
+            let base = zeron_update::release_base(&config.edge_url)
+                .unwrap_or_else(|_| zeron_update::FORK_RELEASES.to_owned());
+            format!("{base}/harness-compatibility.json")
+        } else {
+            format!(
+                "{}/releases/harness-compatibility.json",
+                config.edge_url.trim_end_matches('/')
+            )
+        };
+        core.harness_updates.set_compatibility_feed(compatibility_feed);
         // The release channel a macOS app install follows lives in the data
         // dir (update-channel.json), so this report follows the app's choice.
         zeron_update::channel::set_data_dir(&config.data_dir);

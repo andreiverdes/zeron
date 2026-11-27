@@ -540,16 +540,30 @@ fn validate_release_override(value: &str) -> anyhow::Result<String> {
     Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
+/// This fork's release feed in a `local-only` build: the GitHub release
+/// marked latest on andreiverdes/zeron, its `manifest.json` and artifacts as
+/// assets (the shape `windows::pinned_release` already reads).
+pub const FORK_RELEASES: &str = "https://github.com/andreiverdes/zeron/releases/latest/download";
+
 /// The project's GitHub releases page — the advisory update strip opens this
 /// for unmanaged installs (source builds, hand-copied binaries), where no
 /// updater flow exists to drive.
+#[cfg(not(feature = "local-only"))]
 pub const RELEASES_PAGE: &str = "https://github.com/zeronsh/zeron/releases";
+#[cfg(feature = "local-only")]
+pub const RELEASES_PAGE: &str = "https://github.com/andreiverdes/zeron/releases";
 
 /// The newest release's page — the download destination offered when this
 /// installation cannot replace itself.
+#[cfg(not(feature = "local-only"))]
 pub const LATEST_RELEASE_PAGE: &str = "https://github.com/zeronsh/zeron/releases/latest";
+#[cfg(feature = "local-only")]
+pub const LATEST_RELEASE_PAGE: &str = "https://github.com/andreiverdes/zeron/releases/latest";
 
-fn release_base(edge_url: &str) -> anyhow::Result<String> {
+/// Where releases are read from: `ZERON_RELEASES_URL`, a Windows install's
+/// configured feed, the fork's GitHub releases in a `local-only` build, else
+/// the edge's `{edge}/releases`.
+pub fn release_base(edge_url: &str) -> anyhow::Result<String> {
     if let Ok(url) = std::env::var("ZERON_RELEASES_URL")
         && !url.trim().is_empty()
     {
@@ -558,6 +572,9 @@ fn release_base(edge_url: &str) -> anyhow::Result<String> {
     #[cfg(windows)]
     if let Some(url) = windows::release_url()? {
         return Ok(url.trim_end_matches('/').to_owned());
+    }
+    if cfg!(feature = "local-only") {
+        return Ok(FORK_RELEASES.to_owned());
     }
     Ok(format!("{}/releases", edge_url.trim_end_matches('/')))
 }

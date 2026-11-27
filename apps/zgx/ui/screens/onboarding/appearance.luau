@@ -28,6 +28,8 @@ return function(props: Props): Node
 					auth.sign_out(actions.signed_out)
 				end,
 			}
+			-- (First in a `local-only` build's setup: nothing to go back to.)
+			elseif state.LOCAL_ONLY then nil
 			else Onboarding.Back { on_click = props.on_back },
 		continue = { label = ui.t("common.continue") :: any, on_click = props.on_continue },
 		Onboarding.Form {

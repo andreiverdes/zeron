@@ -1,6 +1,8 @@
 //! Auth service tests: dev mode, and the WorkOS flows (headless paste-code exchange,
 //! loopback callback, refresh rotation + revocation, org onboarding) against a stub
 //! edge HTTP server on a plain tokio TcpListener.
+// Sign-in flows a `local-only` build compiles out.
+#![cfg(not(feature = "local-only"))]
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

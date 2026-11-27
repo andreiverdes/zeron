@@ -72,7 +72,12 @@ add(voice, "microphone", "Personal")
 add(files, "folder", "Personal")
 add(shortcuts, "keyboard", "Personal")
 add(appshots, "gallery", "Personal")
-add(profile, "user-rounded", "Personal")
+-- (A `local-only` build has no account: no Profile page to sign in from.)
+if ui.shared("account.local_only", false):peek() == true then
+	search.unindex(profile.ID)
+else
+	add(profile, "user-rounded", "Personal")
+end
 -- The panel's browser, under a heading of its own (room for what it grows:
 -- site data, permissions, downloads).
 add(browser, "global", "Browser")

@@ -441,6 +441,10 @@ pub(crate) fn encode_path(value: &str) -> String {
 /// Whether the engine keeps a session, without reading it: a launch signed
 /// in skips the intro.
 pub fn session_exists() -> bool {
+    // (A `local-only` build's engine never reads it: no session to restore.)
+    if cfg!(feature = "local-only") {
+        return false;
+    }
     let account = endpoint();
     engine::manager::Config::from_env(&account.edge, &account.client, account.port)
         .is_ok_and(|config| config.data_dir.join("session.json").is_file())
@@ -618,6 +622,10 @@ impl Auth {
     /// account, unasked); signing in may reuse it, unless someone signed out
     /// here.
     async fn browser_sign_in(&self, create: bool, generation: u64) -> Result<(), Outcome> {
+        if cfg!(feature = "local-only") {
+            eprintln!("zeron-zgx: account: sign-in is disabled in this build (local-only)");
+            return Err("failed");
+        }
         let params = if create {
             json!({ "screenHint": "sign-up", "fresh": true })
         } else {
